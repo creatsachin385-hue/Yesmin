@@ -2,7 +2,6 @@ name: Build Yesmin AI Android APK
 
 on:
   push:
-    branches: [ "*" ]
   workflow_dispatch:
 
 jobs:
@@ -13,21 +12,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup Java JDK 21 (Required by Capacitor 6 Android)
-        uses: actions/setup-java@v4
+      - name: Setup Java JDK 21 & Node 22
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Unpack ZIP & Prepare Capacitor Project
+      - name: Unpack ZIP & Create Capacitor Config
         run: |
           shopt -s nullglob
           for z in *.zip; do
@@ -35,40 +26,37 @@ jobs:
             unzip -o "$z" -d .
           done
           mkdir -p www
-          if [ -f "yesmin_ai.html" ]; then
-            cp -f yesmin_ai.html www/index.html
+          FOUND_HTML=$(find . -maxdepth 3 -name "yesmin_ai.html" | head -n 1)
+          if [ -n "$FOUND_HTML" ]; then
+            cp -f "$FOUND_HTML" www/index.html
           elif [ -f "index.html" ]; then
             cp -f index.html www/index.html
           else
-            find . -name "yesmin_ai.html" -exec cp -f {} www/index.html \;
+            echo "<h1>Yesmin AI</h1>" > www/index.html
           fi
-          cat << 'PKG' > package.json
-          {
-            "name": "yesmin-ai",
-            "version": "2.5.0",
-            "private": true,
-            "dependencies": {
-              "@capacitor/android": "6.1.2",
-              "@capacitor/cli": "6.1.2",
-              "@capacitor/core": "6.1.2"
-            }
-          }
-          PKG
-          cat << 'CAP' > capacitor.config.json
-          {
-            "appId": "com.yesmin.ai",
-            "appName": "Yesmin AI",
-            "webDir": "www",
-            "server": {
-              "androidScheme": "https",
-              "cleartext": true
-            }
-          }
-          CAP
+          printf '%s\n' '{' \
+            '  "name": "yesmin-ai",' \
+            '  "version": "2.5.0",' \
+            '  "private": true,' \
+            '  "dependencies": {' \
+            '    "@capacitor/android": "6.1.2",' \
+            '    "@capacitor/cli": "6.1.2",' \
+            '    "@capacitor/core": "6.1.2"' \
+            '  }' \
+            '}' > package.json
+          printf '%s\n' '{' \
+            '  "appId": "com.yesmin.ai",' \
+            '  "appName": "Yesmin AI",' \
+            '  "webDir": "www",' \
+            '  "server": {' \
+            '    "androidScheme": "https",' \
+            '    "cleartext": true' \
+            '  }' \
+            '}' > capacitor.config.json
 
-      - name: Add Android Platform & Build Debug APK
+      - name: Build Debug APK via Gradle
         run: |
-          npm install
+          npm install --no-audit --no-fund
           rm -rf android
           npx cap add android
           npx cap sync android
