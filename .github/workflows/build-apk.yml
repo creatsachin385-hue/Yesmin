@@ -2,52 +2,81 @@ name: Build Yesmin AI Android APK
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "*" ]
   workflow_dispatch:
 
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
 
-      - name: Extract ZIP if uploaded directly from Phone
-        run: |
-          for z in *.zip; do
-            if [ -f "$z" ]; then
-              unzip -o "$z" -d .
-            fi
-          done
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Setup Java JDK 17
+      - name: Setup Java JDK 21 (Required by Capacitor 6 Android)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build Capacitor Android Project
+      - name: Unpack ZIP & Prepare Capacitor Project
         run: |
+          shopt -s nullglob
+          for z in *.zip; do
+            echo "Extracting $z..."
+            unzip -o "$z" -d .
+          done
           mkdir -p www
-          if [ -f "yesmin_ai.html" ]; then cp yesmin_ai.html www/index.html; fi
-          npm install
-          npx cap add android || npx cap sync android
-          npx cap copy android
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST" ]; then
-            sed -i 's/<application/<uses-permission android:name="android.permission.RECORD_AUDIO" \/>\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" \/>\n    <application android:usesCleartextTraffic="true"/g' "$MANIFEST"
+          if [ -f "yesmin_ai.html" ]; then
+            cp -f yesmin_ai.html www/index.html
+          elif [ -f "index.html" ]; then
+            cp -f index.html www/index.html
+          else
+            find . -name "yesmin_ai.html" -exec cp -f {} www/index.html \;
           fi
-          cd android && chmod +x gradlew && ./gradlew assembleDebug
+          cat << 'PKG' > package.json
+          {
+            "name": "yesmin-ai",
+            "version": "2.5.0",
+            "private": true,
+            "dependencies": {
+              "@capacitor/android": "6.1.2",
+              "@capacitor/cli": "6.1.2",
+              "@capacitor/core": "6.1.2"
+            }
+          }
+          PKG
+          cat << 'CAP' > capacitor.config.json
+          {
+            "appId": "com.yesmin.ai",
+            "appName": "Yesmin AI",
+            "webDir": "www",
+            "server": {
+              "androidScheme": "https",
+              "cleartext": true
+            }
+          }
+          CAP
 
-      - name: Upload Ready APK
+      - name: Add Android Platform & Build Debug APK
+        run: |
+          npm install
+          rm -rf android
+          npx cap add android
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload Ready APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Yesmin-AI-Android-APK
