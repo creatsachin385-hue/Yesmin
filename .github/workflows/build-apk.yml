@@ -60,7 +60,7 @@ jobs:
           npx cap sync android
           mkdir -p android/app/src/main/java/com/yesmin/ai
           if [ -f "MainActivity.java" ]; then
-            cp -f MainActivity.java android/app/src/main/java/com/yesmin/ai/MainActivity.java
+            sed 's/ArrayArrayList/ArrayList/g' MainActivity.java > android/app/src/main/java/com/yesmin/ai/MainActivity.java
           fi
           if [ -f "AndroidManifest.xml" ]; then
             cp -f AndroidManifest.xml android/app/src/main/AndroidManifest.xml
