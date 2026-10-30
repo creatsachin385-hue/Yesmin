@@ -1,4 +1,4 @@
-name: Build Yesmin AI Android APK
+name: Build Yesmin AI Native Android APK
 
 on:
   push:
@@ -18,23 +18,17 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Unpack ZIP & Prepare Capacitor Project
+      - name: Unpack ZIP & Build Pure Native Android APK (Zero WebView)
         run: |
           shopt -s nullglob
           for z in *.zip; do
-            echo "Extracting $z..."
             unzip -o "$z" -d .
           done
           mkdir -p www
-          FOUND_HTML=$(find . -maxdepth 3 -name "yesmin_ai.html" | head -n 1)
-          if [ -n "$FOUND_HTML" ]; then
-            cp -f "$FOUND_HTML" www/index.html
-          elif [ -f "index.html" ]; then
-            cp -f index.html www/index.html
-          fi
+          echo "Native" > www/index.html
           printf '%s\n' '{' \
             '  "name": "yesmin-ai",' \
-            '  "version": "2.5.0",' \
+            '  "version": "3.0.0",' \
             '  "private": true,' \
             '  "dependencies": {' \
             '    "@capacitor/android": "6.1.2",' \
@@ -45,31 +39,19 @@ jobs:
           printf '%s\n' '{' \
             '  "appId": "com.yesmin.ai",' \
             '  "appName": "Yesmin AI",' \
-            '  "webDir": "www",' \
-            '  "server": {' \
-            '    "androidScheme": "https",' \
-            '    "cleartext": true' \
-            '  }' \
+            '  "webDir": "www"' \
             '}' > capacitor.config.json
-
-      - name: Inject Native Android Java Bridge & Permissions & Build APK
-        run: |
           npm install --no-audit --no-fund
           rm -rf android
           npx cap add android
-          npx cap sync android
           mkdir -p android/app/src/main/java/com/yesmin/ai
-          if [ -f "MainActivity.java" ]; then
-            sed 's/ArrayArrayList/ArrayList/g' MainActivity.java > android/app/src/main/java/com/yesmin/ai/MainActivity.java
-          fi
-          if [ -f "AndroidManifest.xml" ]; then
-            cp -f AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-          fi
+          cp -f MainActivity.java android/app/src/main/java/com/yesmin/ai/MainActivity.java
+          cp -f AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload Ready Native APK Artifact
+      - name: Upload Pure Native Android APK
         uses: actions/upload-artifact@v4
         with:
           name: Yesmin-AI-Android-APK
