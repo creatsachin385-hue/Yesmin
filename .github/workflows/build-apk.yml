@@ -30,7 +30,7 @@ jobs:
           echo "Native" > www/index.html
           printf '%s\n' '{' \
             '  "name": "yesmin-ai",' \
-            '  "version": "5.2.0",' \
+            '  "version": "6.0.0",' \
             '  "private": true,' \
             '  "dependencies": {' \
             '    "@capacitor/android": "6.1.2",' \
@@ -47,11 +47,15 @@ jobs:
           rm -rf android
           npx cap add android
 
-          # 1. Copy Java classes (MainActivity, YesminAgentService, UiHtmlProvider)
+          # 1. Copy Java classes (MainActivity, YesminAgentService, UiHtmlProvider, and ShizukuProvider)
           mkdir -p android/app/src/main/java/com/yesmin/ai
+          mkdir -p android/app/src/main/java/rikka/shizuku
           cp -f MainActivity.java android/app/src/main/java/com/yesmin/ai/MainActivity.java
           cp -f YesminAgentService.java android/app/src/main/java/com/yesmin/ai/YesminAgentService.java
           cp -f UiHtmlProvider.java android/app/src/main/java/com/yesmin/ai/UiHtmlProvider.java
+          if [ -f "ShizukuProvider.java" ]; then
+            cp -f ShizukuProvider.java android/app/src/main/java/rikka/shizuku/ShizukuProvider.java
+          fi
 
           # 2. Copy AndroidManifest & Accessibility Service XML
           mkdir -p android/app/src/main/res/xml
