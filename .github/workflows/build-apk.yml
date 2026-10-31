@@ -18,17 +18,19 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Build Native Android APK with Shizuku SDK & AccessibilityService
+      - name: Unpack Latest ZIP & Build Native Android APK
         run: |
-          shopt -s nullglob
-          for z in *.zip; do
-            unzip -o "$z" -d .
-          done
+          NEWEST_ZIP=$(ls -t *.zip 2>/dev/null | head -n 1 || true)
+          if [ -n "$NEWEST_ZIP" ]; then
+            echo "Extracting newest ZIP: $NEWEST_ZIP"
+            unzip -o "$NEWEST_ZIP" -d .
+          fi
+
           mkdir -p www
           echo "Native" > www/index.html
           printf '%s\n' '{' \
             '  "name": "yesmin-ai",' \
-            '  "version": "5.0.0",' \
+            '  "version": "5.2.0",' \
             '  "private": true,' \
             '  "dependencies": {' \
             '    "@capacitor/android": "6.1.2",' \
@@ -45,34 +47,34 @@ jobs:
           rm -rf android
           npx cap add android
 
-          # 1. Add official Rikka Shizuku SDK to android/app/build.gradle
-          printf '\ndependencies {\n    implementation "dev.rikka.shizuku:api:13.1.5"\n    implementation "dev.rikka.shizuku:provider:13.1.5"\n}\n' >> android/app/build.gradle
-
-          # 2. Copy Java classes (MainActivity, YesminAgentService, UiHtmlProvider)
+          # 1. Copy Java classes (MainActivity, YesminAgentService, UiHtmlProvider)
           mkdir -p android/app/src/main/java/com/yesmin/ai
           cp -f MainActivity.java android/app/src/main/java/com/yesmin/ai/MainActivity.java
           cp -f YesminAgentService.java android/app/src/main/java/com/yesmin/ai/YesminAgentService.java
           cp -f UiHtmlProvider.java android/app/src/main/java/com/yesmin/ai/UiHtmlProvider.java
 
-          # 3. Copy AndroidManifest & Accessibility Service XML
+          # 2. Copy AndroidManifest & Accessibility Service XML
           mkdir -p android/app/src/main/res/xml
           mkdir -p android/app/src/main/res/values
           cp -f AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           cp -f yesmin_accessibility_service.xml android/app/src/main/res/xml/yesmin_accessibility_service.xml
           cp -f strings.xml android/app/src/main/res/values/strings.xml
 
-          # 4. Set custom AI App Icon across all mipmap folders
+          # 3. Inject Custom AI App Icon across all mipmap folders
           rm -rf android/app/src/main/res/mipmap-anydpi-v26
-          for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            mkdir -p "android/app/src/main/res/$dir"
-            cp -f app_icon.png "android/app/src/main/res/$dir/ic_launcher.png"
-            cp -f app_icon.png "android/app/src/main/res/$dir/ic_launcher_round.png"
-          done
+          if [ -f "app_icon.png" ]; then
+            for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+              mkdir -p "android/app/src/main/res/$dir"
+              cp -f app_icon.png "android/app/src/main/res/$dir/ic_launcher.png"
+              cp -f app_icon.png "android/app/src/main/res/$dir/ic_launcher_round.png"
+              cp -f app_icon.png "android/app/src/main/res/$dir/ic_launcher_foreground.png"
+            done
+          fi
 
-          # 5. Build APK
+          # 4. Build APK
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload Pure Native Android APK
         uses: actions/upload-artifact@v4
