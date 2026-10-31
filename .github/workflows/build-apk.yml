@@ -18,7 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Unpack ZIP & Build Pure Native Android APK
+      - name: Build Native Android APK with Shizuku SDK & AccessibilityService
         run: |
           shopt -s nullglob
           for z in *.zip; do
@@ -28,7 +28,7 @@ jobs:
           echo "Native" > www/index.html
           printf '%s\n' '{' \
             '  "name": "yesmin-ai",' \
-            '  "version": "3.2.0",' \
+            '  "version": "5.0.0",' \
             '  "private": true,' \
             '  "dependencies": {' \
             '    "@capacitor/android": "6.1.2",' \
@@ -44,9 +44,32 @@ jobs:
           npm install --no-audit --no-fund
           rm -rf android
           npx cap add android
+
+          # 1. Add official Rikka Shizuku SDK to android/app/build.gradle
+          printf '\ndependencies {\n    implementation "dev.rikka.shizuku:api:13.1.5"\n    implementation "dev.rikka.shizuku:provider:13.1.5"\n}\n' >> android/app/build.gradle
+
+          # 2. Copy Java classes (MainActivity, YesminAgentService, UiHtmlProvider)
           mkdir -p android/app/src/main/java/com/yesmin/ai
           cp -f MainActivity.java android/app/src/main/java/com/yesmin/ai/MainActivity.java
+          cp -f YesminAgentService.java android/app/src/main/java/com/yesmin/ai/YesminAgentService.java
+          cp -f UiHtmlProvider.java android/app/src/main/java/com/yesmin/ai/UiHtmlProvider.java
+
+          # 3. Copy AndroidManifest & Accessibility Service XML
+          mkdir -p android/app/src/main/res/xml
+          mkdir -p android/app/src/main/res/values
           cp -f AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          cp -f yesmin_accessibility_service.xml android/app/src/main/res/xml/yesmin_accessibility_service.xml
+          cp -f strings.xml android/app/src/main/res/values/strings.xml
+
+          # 4. Set custom AI App Icon across all mipmap folders
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+          for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            mkdir -p "android/app/src/main/res/$dir"
+            cp -f app_icon.png "android/app/src/main/res/$dir/ic_launcher.png"
+            cp -f app_icon.png "android/app/src/main/res/$dir/ic_launcher_round.png"
+          done
+
+          # 5. Build APK
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
