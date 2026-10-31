@@ -18,7 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Unpack ZIP & Build Pure Native Android APK (Zero WebView)
+      - name: Unpack ZIP & Build Pure Native Android APK
         run: |
           shopt -s nullglob
           for z in *.zip; do
@@ -28,7 +28,7 @@ jobs:
           echo "Native" > www/index.html
           printf '%s\n' '{' \
             '  "name": "yesmin-ai",' \
-            '  "version": "3.0.0",' \
+            '  "version": "3.2.0",' \
             '  "private": true,' \
             '  "dependencies": {' \
             '    "@capacitor/android": "6.1.2",' \
